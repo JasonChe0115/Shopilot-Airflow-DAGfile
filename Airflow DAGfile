@@ -2,6 +2,7 @@ from datetime import timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
+from collections import defaultdict
 import requests
 from pymongo import MongoClient
 
@@ -143,6 +144,7 @@ def create_notification_step3(user_id):
         return True
 
 
+send_result = defaultdict(list)
 
 failed_list = []
 for user_id in unique_user_ids:
@@ -158,6 +160,8 @@ for user_id in unique_user_ids:
         sent = create_notification_step2(user_id)
     elif current_step == 3:
         sent = create_notification_step3(user_id)
+    else:
+        print(f"{user_id}, already current step {current_step}")
 
     if sent:
         tag_collection.update_one(
@@ -165,10 +169,13 @@ for user_id in unique_user_ids:
             {'$set': {'onboardingStep': current_step + 1}},
             upsert=True
         )
+        current_step += 1
+        send_result[current_step].append(user_id)
 
     else:
-        failed_list.append(user_id)
-        print("failed_list : ", failed_list)
+        send_result['fail'].append(user_id)
+
+    print(send_result)
 
 
 # PythonOperator로 푸시 알림 함수 연결
