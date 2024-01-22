@@ -1,0 +1,183 @@
+from datetime import timedelta
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
+import requests
+from pymongo import MongoClient
+
+# DAG 설정
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': days_ago(0, hour=14, minute=0),  # 시작 날짜 설정, 샌프란시스코 기준 오후 2시
+    'email': ['your_email@example.com'],
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+dag = DAG(
+    'push_notification_dag',
+    default_args=default_args,
+    description='Send push notifications every 3 days at 2 PM SF time',
+    schedule_interval='0 14 */3 * *',  # Cron expression: At 14:00 on every 3rd day-of-month
+    catchup=False,
+)
+
+# MongoDB 연결 및 컬렉션 설정
+mongo_client = MongoClient("mongodb+srv://messiki:WzRGijqN7A8jG4a8@shopilotcluster.u2wmlln.mongodb.net")
+db = mongo_client['users']
+user_collection = db['users']
+tag_collection = db['tags']
+
+# OneSignal 설정
+ONESIGNAL_APPID = "01072036-92bd-4d10-bb66-b8df978fa380"
+ONESIGNAL_API_KEY = "ZGFiOGQxZTctMzc5Ni00ODNiLThmODUtNWNlZDkzOTIxNzcy"
+
+
+
+# 푸시 알림 전송 함수
+def create_notification_step0(user_id):
+    filters = [{"field": "tag", "key": "external_id", "relation": "=", "value": user_id}]
+    payload = {
+        "filters": filters,
+        "contents": {
+            "en": "Get to know how to scan and Discover the best deals now!",
+        },
+        "subtitle": {
+            "en": "🔍 Scan & Save $5 Now! 💴",
+        },
+        "url": "https://youtube.com/shorts/RuAZ7T0iGJQ?si=Q_zZ4EqotDLR7KZK"
+    }
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+        "content-type": "application/json"
+    }
+    response = requests.post(f"https://onesignal.com/api/v1/notifications?app_id={ONESIGNAL_APPID}", json=payload,
+                             headers=headers)
+    print(f"Notification sent to user {user_id}: {response.json()}")
+    if response.json().get('errors'):
+        return False
+    else:
+        return True
+
+
+# 푸시 알림 전송 함수
+def create_notification_step1(user_id):
+    filters = [{"field": "tag", "key": "external_id", "relation": "=", "value": user_id}]
+    payload = {
+        "filters": filters,
+        "contents": {
+            "en": "Find your favorite dish and Add ingredients to your Shopping list with ease!",
+        },
+        "subtitle": {
+            "en": "🔥Find recipe like delicious Kimbap!🔥",
+        },
+        "url": "https://youtube.com/shorts/HRGss04BYXc?si=0QuQUJYhxBJNMc_j"
+    }
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+        "content-type": "application/json"
+    }
+    response = requests.post(f"https://onesignal.com/api/v1/notifications?app_id={ONESIGNAL_APPID}", json=payload,
+                             headers=headers)
+    print(f"Notification sent to user {user_id}: {response.json()}")
+    if response.json().get('errors'):
+        return False
+    else:
+        return True
+
+
+def create_notification_step2(user_id):
+    filters = [{"field": "tag", "key": "external_id", "relation": "=", "value": user_id}]
+    payload = {
+        "filters": filters,
+        "contents": {
+            "en": "Your Life with Our Hassle-Free Solution",
+        },
+        "subtitle": {
+            "en": "👋Say Goodbye to Receipt Clutter! 📝",
+        },
+        "url": "https://youtube.com/shorts/AZ9vVY7I7Aw?si=viOkH340wJVqaG5d"
+    }
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+        "content-type": "application/json"
+    }
+    response = requests.post(f"https://onesignal.com/api/v1/notifications?app_id={ONESIGNAL_APPID}", json=payload,
+                             headers=headers)
+    print(f"Notification sent to user {user_id}: {response.json()}")
+    if response.json().get('errors'):
+        return False
+    else:
+        return True
+
+
+def create_notification_step3(user_id):
+    filters = [{"field": "tag", "key": "external_id", "relation": "=", "value": user_id}]
+    payload = {
+        "filters": filters,
+        "contents": {
+            "en": "Simplify Your Shopping with ShoppingList - Every Item, Every Time!",
+        },
+        "subtitle": {
+            "en": "⚠️Never Forget an Item Again with ShoppingList! 🛒",
+        },
+        "url": "https://youtube.com/shorts/CN2OFYv2xaw?si=dy--u8NDKGBWYgyo"
+    }
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+        "content-type": "application/json"
+    }
+    response = requests.post(f"https://onesignal.com/api/v1/notifications?app_id={ONESIGNAL_APPID}", json=payload,
+                             headers=headers)
+    print(f"Notification sent to user {user_id}: {response.json()}")
+    if response.json().get('errors'):
+        return False
+    else:
+        return True
+
+
+
+failed_list = []
+for user_id in unique_user_ids:
+    current_tag = tag_collection.find_one({'userId': user_id})
+    current_step = current_tag['onboardingStep'] if current_tag else 0
+    sent = None
+
+    if current_step == 0:
+        sent = create_notification_step0(user_id)
+    elif current_step == 1:
+        sent = create_notification_step1(user_id)
+    elif current_step == 2:
+        sent = create_notification_step2(user_id)
+    elif current_step == 3:
+        sent = create_notification_step3(user_id)
+
+    if sent:
+        tag_collection.update_one(
+            {'userId': user_id},
+            {'$set': {'onboardingStep': current_step + 1}},
+            upsert=True
+        )
+
+    else:
+        failed_list.append(user_id)
+        print("failed_list : ", failed_list)
+
+
+# PythonOperator로 푸시 알림 함수 연결
+send_notification_task = PythonOperator(
+    task_id='send_push_notification',
+    provide_context=True,
+    python_callable=send_push_notifications,
+    dag=dag,
+)
+
+# DAG 실행
+send_notification_task
